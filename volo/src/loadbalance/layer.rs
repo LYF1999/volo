@@ -143,13 +143,18 @@ impl<D, LB> LoadBalanceLayer<D, LB> {
 
 impl<D, LB, S> Layer<S> for LoadBalanceLayer<D, LB>
 where
-    D: Discover,
-    LB: LoadBalance<D>,
+    D: Discover + Clone,
+    LB: LoadBalance<D> + Clone,
 {
     type Service = LoadBalanceService<D, LB, S>;
 
-    fn layer(self, inner: S) -> Self::Service {
-        LoadBalanceService::new(self.discover, self.load_balance, inner, self.retry_count)
+    fn layer(&self, inner: S) -> Self::Service {
+        LoadBalanceService::new(
+            self.discover.clone(),
+            self.load_balance.clone(),
+            inner,
+            self.retry_count,
+        )
     }
 }
 

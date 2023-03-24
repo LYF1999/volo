@@ -209,7 +209,7 @@ mod tests {
             "127.0.0.1:8000".parse().unwrap(),
             "127.0.0.2:9000".parse().unwrap(),
         ]);
-        let resp = futures::executor::block_on(async { discover.discover(&empty).await }).unwrap();
+        let resp = futures::executor::block_on(discover.discover(&empty)).unwrap();
         let expected = vec![
             Arc::new(Instance {
                 address: Address::Ip("127.0.0.1:8000".parse().unwrap()),

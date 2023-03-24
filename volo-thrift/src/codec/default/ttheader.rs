@@ -13,7 +13,7 @@ use faststr::FastStr;
 use linkedbytes::LinkedBytes;
 use metainfo::{Backward, Forward};
 use num_enum::TryFromPrimitive;
-use pilota::thrift::{DecodeError, EncodeError, ProtocolErrorKind};
+use pilota::thrift::{DecodeError, EncodeError, Message, ProtocolErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt};
 use tracing::{trace, warn};
 use volo::{
@@ -25,7 +25,7 @@ use super::MakeZeroCopyCodec;
 use crate::{
     codec::default::{ZeroCopyDecoder, ZeroCopyEncoder},
     context::{Config, ThriftContext},
-    EntryMessage, ThriftMessage,
+    ThriftMessage,
 };
 
 /// [`MakeTTHeaderCodec`] implements [`MakeZeroCopyCodec`] to create [`TTheaderEncoder`] and
@@ -79,7 +79,7 @@ impl<D> ZeroCopyDecoder for TTHeaderDecoder<D>
 where
     D: ZeroCopyDecoder,
 {
-    fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         bytes: &mut BytesMut,
@@ -101,7 +101,7 @@ where
     }
 
     async fn decode_async<
-        Msg: Send + EntryMessage,
+        Msg: Send + Message,
         Cx: ThriftContext,
         R: AsyncRead + Unpin + Send + Sync,
     >(
@@ -166,7 +166,7 @@ impl<E> ZeroCopyEncoder for TTHeaderEncoder<E>
 where
     E: ZeroCopyEncoder,
 {
-    fn encode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn encode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         linked_bytes: &mut LinkedBytes,
@@ -187,7 +187,7 @@ where
         self.inner.encode(cx, linked_bytes, msg)
     }
 
-    fn size<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn size<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: &ThriftMessage<Msg>,

@@ -1,12 +1,12 @@
 use bytes::{Buf, BytesMut};
 use linkedbytes::LinkedBytes;
-use pilota::thrift::{rw_ext::WriteExt, DecodeError, EncodeError, ProtocolError};
+use pilota::thrift::{rw_ext::WriteExt, DecodeError, EncodeError, Message, ProtocolError};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt};
 use tracing::trace;
 use volo::{context::Role, util::buf_reader::BufReader};
 
 use super::{MakeZeroCopyCodec, ZeroCopyDecoder, ZeroCopyEncoder};
-use crate::{context::ThriftContext, EntryMessage, ThriftMessage};
+use crate::{context::ThriftContext, ThriftMessage};
 
 /// Default limit according to thrift spec.
 /// https://github.com/apache/thrift/blob/master/doc/specs/thrift-rpc.md#framed-vs-unframed-transport
@@ -77,7 +77,7 @@ impl<D> ZeroCopyDecoder for FramedDecoder<D>
 where
     D: ZeroCopyDecoder,
 {
-    fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         bytes: &mut BytesMut,
@@ -98,7 +98,7 @@ where
     }
 
     async fn decode_async<
-        Msg: Send + EntryMessage,
+        Msg: Send + Message,
         Cx: ThriftContext,
         R: AsyncRead + Unpin + Send + Sync,
     >(
@@ -172,7 +172,7 @@ impl<E> ZeroCopyEncoder for FramedEncoder<E>
 where
     E: ZeroCopyEncoder,
 {
-    fn encode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn encode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         linked_bytes: &mut LinkedBytes,
@@ -197,7 +197,7 @@ where
         self.inner.encode(cx, linked_bytes, msg)
     }
 
-    fn size<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn size<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: &ThriftMessage<Msg>,

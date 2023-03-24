@@ -107,3 +107,8 @@ codegen-units = 1
 panic = 'unwind'
 incremental = false
 overflow-checks = false
+
+[patch.crates-io]
+motore = { path = "../motore/motore" }
+pilota = { path = "../pilota/pilota" }
+pilota-build = { path = "../pilota/pilota-build" }

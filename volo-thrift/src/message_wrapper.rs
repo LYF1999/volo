@@ -6,7 +6,7 @@ use crate::{
     protocol::{
         TInputProtocol, TLengthProtocol, TMessageIdentifier, TMessageType, TOutputProtocol,
     },
-    ApplicationError, ApplicationErrorKind, EntryMessage,
+    ApplicationError, ApplicationErrorKind,
 };
 
 #[derive(Debug)]
@@ -25,25 +25,19 @@ pub struct ThriftMessage<M> {
 pub(crate) struct DummyMessage;
 
 #[async_trait::async_trait]
-impl EntryMessage for DummyMessage {
+impl Message for DummyMessage {
     #[inline]
     fn encode<T: TOutputProtocol>(&self, _protocol: &mut T) -> Result<(), EncodeError> {
         unreachable!()
     }
 
     #[inline]
-    fn decode<T: TInputProtocol>(
-        _protocol: &mut T,
-        _msg_ident: &TMessageIdentifier,
-    ) -> Result<Self, DecodeError> {
+    fn decode<T: TInputProtocol>(_protocol: &mut T) -> Result<Self, DecodeError> {
         unreachable!()
     }
 
     #[inline]
-    async fn decode_async<T: TAsyncInputProtocol>(
-        _protocol: &mut T,
-        _msg_ident: &TMessageIdentifier,
-    ) -> Result<Self, DecodeError> {
+    async fn decode_async<T: TAsyncInputProtocol>(_protocol: &mut T) -> Result<Self, DecodeError> {
         unreachable!()
     }
 
@@ -85,7 +79,7 @@ impl<M> ThriftMessage<M> {
 
 impl<U> ThriftMessage<U>
 where
-    U: EntryMessage,
+    U: Message,
 {
     pub(crate) fn size<T: TLengthProtocol>(&self, protocol: &mut T) -> usize {
         let ident = TMessageIdentifier::new(
@@ -114,7 +108,7 @@ where
 
 impl<U> ThriftMessage<U>
 where
-    U: EntryMessage + Send,
+    U: Message + Send,
 {
     pub(crate) fn encode<T: TOutputProtocol>(&self, protocol: &mut T) -> Result<(), EncodeError> {
         let ident = TMessageIdentifier::new(
@@ -159,8 +153,9 @@ where
 
         let res = match msg_ident.message_type {
             TMessageType::Exception => Err(crate::Error::Application(Message::decode(protocol)?)),
-            _ => Ok(U::decode(protocol, &msg_ident)?),
+            _ => Ok(U::decode(protocol)?),
         };
+
         protocol.read_message_end()?;
         Ok(ThriftMessage {
             data: res,
@@ -184,7 +179,7 @@ where
             TMessageType::Exception => Err(crate::Error::Application(
                 Message::decode_async(protocol).await?,
             )),
-            _ => Ok(U::decode_async(protocol, &msg_ident).await?),
+            _ => Ok(U::decode_async(protocol).await?),
         };
         protocol.read_message_end().await?;
         Ok(ThriftMessage {

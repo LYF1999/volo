@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicUsize;
 
+use pilota::thrift::Message;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite};
 use volo::context::Context;
@@ -8,7 +9,7 @@ use crate::{
     codec::{Decoder, Encoder, MakeCodec},
     context::{ClientContext, ThriftContext},
     transport::pool::Poolable,
-    ApplicationError, ApplicationErrorKind, EntryMessage, Error, ThriftMessage,
+    ApplicationError, ApplicationErrorKind, Error, ThriftMessage,
 };
 
 lazy_static::lazy_static! {
@@ -62,7 +63,7 @@ where
     E: Encoder,
     D: Decoder,
 {
-    pub async fn send<Req: EntryMessage, Resp: EntryMessage>(
+    pub async fn send<Req: Message, Resp: Message>(
         &mut self,
         cx: &mut ClientContext,
         msg: ThriftMessage<Req>,
@@ -86,7 +87,7 @@ impl<D> ReadHalf<D>
 where
     D: Decoder,
 {
-    pub async fn try_next<T: EntryMessage>(
+    pub async fn try_next<T: Message>(
         &mut self,
         cx: &mut ClientContext,
     ) -> Result<Option<ThriftMessage<T>>, Error> {
@@ -126,7 +127,7 @@ impl<E> WriteHalf<E>
 where
     E: Encoder,
 {
-    pub async fn send<T: EntryMessage>(
+    pub async fn send<T: Message>(
         &mut self,
         cx: &mut impl ThriftContext,
         msg: ThriftMessage<T>,

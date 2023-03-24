@@ -43,7 +43,7 @@ impl GrpcTimeoutLayer {
 impl<S> Layer<S> for GrpcTimeoutLayer {
     type Service = GrpcTimeout<S>;
 
-    fn layer(self, inner: S) -> Self::Service {
+    fn layer(&self, inner: S) -> Self::Service {
         GrpcTimeout::new(inner, self.timeout)
     }
 }

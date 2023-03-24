@@ -1,6 +1,7 @@
+use pilota::thrift::Message;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{context::ThriftContext, EntryMessage, ThriftMessage};
+use crate::{context::ThriftContext, ThriftMessage};
 
 /// The default codec implementation.
 pub mod default;
@@ -14,7 +15,7 @@ pub use default::DefaultMakeCodec;
 /// Note: [`Decoder`] should be designed to be ready for reuse.
 #[async_trait::async_trait]
 pub trait Decoder: Send + 'static {
-    async fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    async fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
     ) -> Result<Option<ThriftMessage<Msg>>, crate::Error>;
@@ -25,7 +26,7 @@ pub trait Decoder: Send + 'static {
 /// Note: [`Encoder`] should be designed to be ready for reuse.
 #[async_trait::async_trait]
 pub trait Encoder: Send + 'static {
-    async fn encode<Req: Send + EntryMessage, Cx: ThriftContext>(
+    async fn encode<Req: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: ThriftMessage<Req>,

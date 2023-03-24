@@ -31,16 +31,12 @@ impl VoloThriftBackend {
         let args_recv_names = methods
             .iter()
             .map(|m| self.method_args_path(&service_name, m, false));
-        let args_send_names = methods
-            .iter()
-            .map(|m| self.method_args_path(&service_name, m, true));
 
         let result_names = methods
             .iter()
             .map(|m| self.method_result_path(&service_name, m));
 
         let req_recv_name = format_ident!("{}RequestRecv", service_name);
-        let req_send_name = format_ident!("{}RequestSend", service_name);
         let res_name = format_ident!("{}Response", service_name);
 
         let req_impl = {
@@ -49,12 +45,13 @@ impl VoloThriftBackend {
                 let decode_variants = helper.codegen_item_decode();
 
                 quote! {
-                    Ok(match &*msg_ident.name {
-                        #(#methods_names => {
+                    let method_name = protocol.get_message_ident().map(|ident| &*ident.name); 
+                    Ok(match method_name {
+                        #(::std::option::Option::Some(#methods_names) => {
                             Self::#variant_names(#decode_variants)
                         }),*
                         _ => {
-                            return Err(::pilota::thrift::DecodeError::new(::pilota::thrift::DecodeErrorKind::UnknownMethod,  format!("unknown method {}", msg_ident.name)));
+                            return Err(::pilota::thrift::DecodeError::new(::pilota::thrift::DecodeErrorKind::UnknownMethod,  format!("unknown method {:?}", method_name)));
                         },
                     })
                 }
@@ -64,7 +61,7 @@ impl VoloThriftBackend {
             let decode_async = mk_decode(true);
             quote! {
                 #[::async_trait::async_trait]
-                impl ::volo_thrift::EntryMessage for #req_recv_name {
+                impl ::volo_thrift::Message for #req_recv_name {
                     fn encode<T: ::pilota::thrift::TOutputProtocol>(&self, protocol: &mut T) -> ::core::result::Result<(), ::pilota::thrift::EncodeError> {
                         match self {
                             #(Self::#variant_names(value) => {
@@ -73,13 +70,12 @@ impl VoloThriftBackend {
                         }
                     }
 
-                    fn decode<T: ::pilota::thrift::TInputProtocol>(protocol: &mut T, msg_ident: &::pilota::thrift::TMessageIdentifier) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError> {
+                    fn decode<T: ::pilota::thrift::TInputProtocol>(protocol: &mut T) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError> {
                        #decode
                     }
 
                     async fn decode_async<T: ::pilota::thrift::TAsyncInputProtocol>(
                         protocol: &mut T,
-                        msg_ident: &::pilota::thrift::TMessageIdentifier
                     ) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError>
                         {
                             #decode_async
@@ -94,36 +90,6 @@ impl VoloThriftBackend {
                     }
                 }
 
-                #[::async_trait::async_trait]
-                impl ::volo_thrift::EntryMessage for #req_send_name {
-                    fn encode<T: ::pilota::thrift::TOutputProtocol>(&self, protocol: &mut T) -> ::core::result::Result<(), ::pilota::thrift::EncodeError> {
-                        match self {
-                            #(Self::#variant_names(value) => {
-                                ::pilota::thrift::Message::encode(value, protocol).map_err(|err| err.into())
-                            }),*
-                        }
-                    }
-
-                    fn decode<T: ::pilota::thrift::TInputProtocol>(protocol: &mut T, msg_ident: &::pilota::thrift::TMessageIdentifier) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError> {
-                       #decode
-                    }
-
-                    async fn decode_async<T: ::pilota::thrift::TAsyncInputProtocol>(
-                        protocol: &mut T,
-                        msg_ident: &::pilota::thrift::TMessageIdentifier
-                    ) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError>
-                        {
-                            #decode_async
-                        }
-
-                    fn size<T: ::pilota::thrift::TLengthProtocol>(&self, protocol: &mut T) -> usize {
-                        match self {
-                            #(Self::#variant_names(value) => {
-                                ::volo_thrift::Message::size(value, protocol)
-                            }),*
-                        }
-                    }
-                }
             }
         };
 
@@ -133,13 +99,13 @@ impl VoloThriftBackend {
                 let decode_item = helper.codegen_item_decode();
 
                 quote! {
-                    let is_err = matches!(msg_ident.message_type, ::pilota::thrift::TMessageType::Exception);
-                    Ok(match &*msg_ident.name {
-                        #(#methods_names => {
+                    let method_name = protocol.get_message_ident().map(|ident| &*ident.name); 
+                    Ok(match method_name {
+                        #(::std::option::Option::Some(#methods_names) => {
                             Self::#variant_names(#decode_item)
                         }),*
                         _ => {
-                            return Err(::pilota::thrift::DecodeError::new(::pilota::thrift::DecodeErrorKind::UnknownMethod,  format!("unknown method {}", msg_ident.name)));
+                            return Err(::pilota::thrift::DecodeError::new(::pilota::thrift::DecodeErrorKind::UnknownMethod,  format!("unknown method {:?}", method_name)));
                         },
                     })
                 }
@@ -149,7 +115,7 @@ impl VoloThriftBackend {
             let decode_async = mk_decode(true);
             quote! {
                 #[::async_trait::async_trait]
-                impl ::volo_thrift::EntryMessage for #res_name {
+                impl ::volo_thrift::Message for #res_name {
                     fn encode<T: ::pilota::thrift::TOutputProtocol>(&self, protocol: &mut T) -> ::core::result::Result<(), ::pilota::thrift::EncodeError> {
                         match self {
                             #(
@@ -160,13 +126,12 @@ impl VoloThriftBackend {
                         }
                     }
 
-                    fn decode<T: ::pilota::thrift::TInputProtocol>(protocol: &mut T, msg_ident: &::pilota::thrift::TMessageIdentifier) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError> {
+                    fn decode<T: ::pilota::thrift::TInputProtocol>(protocol: &mut T) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError> {
                        #decode
                     }
 
                     async fn decode_async<T: ::pilota::thrift::TAsyncInputProtocol>(
                         protocol: &mut T,
-                        msg_ident: &::pilota::thrift::TMessageIdentifier,
                     ) -> ::core::result::Result<Self, ::pilota::thrift::DecodeError>
                         {
                             #decode_async
@@ -182,7 +147,7 @@ impl VoloThriftBackend {
                         }
                     }
                 }
-
+               
             }
         };
         stream.extend(quote! {
@@ -191,10 +156,6 @@ impl VoloThriftBackend {
                 #(#variant_names(#args_recv_names)),*
             }
 
-            #[derive(Debug, Clone)]
-            pub enum #req_send_name {
-                #(#variant_names(#args_send_names)),*
-            }
 
             #[derive(Debug, Clone)]
             pub enum #res_name {
@@ -281,13 +242,11 @@ impl pilota_build::CodegenBackend for VoloThriftBackend {
         all_methods.iter().for_each(|m| {
             let name = self.cx.rust_name(m.def_id).as_syn_ident();
             let resp_type = self.cx.codegen_item_ty(m.ret.kind.clone());
-            let req_fields = m.args.iter().map(|a| {
+            let req_fields = m.args.iter().enumerate().map(|(i, a)| {
                 let name = self.cx.rust_name(a.def_id).as_syn_ident();
                 let ty = self.cx.codegen_item_ty(a.ty.kind.clone());
                 let mut ty = quote! { #ty };
-                if let Some(RustWrapperArc(true)) = self.cx.tags(a.tags_id).as_ref().and_then(|tags| tags.get::<RustWrapperArc>()) {
-                    ty = quote! { ::std::sync::Arc<#ty> };
-                }
+                let ty = (&*format!("Arg{}", i + 1)).as_syn_ident();
                 quote! {
                     #name: #ty
                 }
@@ -328,15 +287,29 @@ impl pilota_build::CodegenBackend for VoloThriftBackend {
                 }
             }).collect_vec();
 
+            let generic_params = m.args.iter().enumerate().map(|(i, _)| (&*format!("Arg{}", i + 1)).as_syn_ident()).collect_vec();
+
+            let generic_params = if generic_params.is_empty() {
+                quote!()
+            } else {
+                quote!(<#(#generic_params),*>)
+            };
+
             client_methods.push(quote! {
-                pub async fn #name(&self #(, #req_fields)*) -> ::std::result::Result<#resp_type, ::volo_thrift::error::ResponseError<#exception>> {
-                    let req = #req_send_name::#enum_variant(#anonymous_args_send_name {
+                pub async fn #name #generic_params (&self #(, #req_fields)*) -> ::std::result::Result<#resp_type, ::volo_thrift::error::ResponseError<#exception>> 
+                where 
+                    MS: ::volo::service::MakeService<#result_path, Error = volo_thrift::Error>,
+                    L: ::volo::Layer<<MS as ::volo::service::MakeService<#result_path>>::Service>,
+                    <L as ::volo::Layer<<MS as ::volo::service::MakeService<#result_path>>::Service>>::Service: ::volo::Service<::volo_thrift::context::ClientContext, #anonymous_args_send_name #generic_params, Response = ::std::option::Option<#result_path>, Error = ::volo_thrift::Error>,
+                {
+                    let req = #anonymous_args_send_name {
                         #(#req_field_names),*
-                    });
+                    };
                     let mut cx = self.0.make_cx(#method_name_str, #oneway);
+                    let svc = self.0.build_service().await?;
                     #[allow(unreachable_patterns)]
-                    match ::volo::service::Service::call(&self.0, &mut cx, req).await? {
-                        Some(#res_name::#enum_variant(#result_path::Ok(resp))) => Ok(resp),
+                    match ::volo::service::Service::call(&svc, &mut cx, req).await? {
+                        Some(#result_path::Ok(resp)) => Ok(resp),
                         #(#convert_exceptions,)*
                         #none,
                         _ => unreachable!()
@@ -426,31 +399,31 @@ impl pilota_build::CodegenBackend for VoloThriftBackend {
 
             pub struct #mk_client_name;
 
-            pub type #client_name = #generic_client_name<::volo::service::BoxCloneService<::volo_thrift::context::ClientContext, #req_send_name, ::std::option::Option<#res_name>, ::volo_thrift::Error>>;
+            // pub type #client_name = #generic_client_name<::volo::service::BoxCloneService<::volo_thrift::context::ClientContext, #req_send_name, ::std::option::Option<#res_name>, ::volo_thrift::Error>>;
 
-            impl<S> ::volo::client::MkClient<::volo_thrift::Client<S>> for #mk_client_name {
-                type Target = #generic_client_name<S>;
-                fn mk_client(&self, service: ::volo_thrift::Client<S>) -> Self::Target {
-                    #generic_client_name(service)
+            impl<MS, L> ::volo::client::MkClient<::volo_thrift::Client<MS, L>> for #mk_client_name {
+                type Target = #generic_client_name<MS, L>;
+                fn mk_client(&self, client: ::volo_thrift::Client<MS, L>) -> Self::Target {
+                    #generic_client_name(client)
                 }
             }
 
             #[derive(Clone)]
-            pub struct #generic_client_name<S>(pub ::volo_thrift::Client<S>);
+            pub struct #generic_client_name<MS, L>(pub ::volo_thrift::Client<MS, L>);
 
-            pub struct #oneshot_client_name<S>(pub ::volo_thrift::Client<S>);
+            // pub struct #oneshot_client_name<S>(pub ::volo_thrift::Client<S>);
 
-            impl<S: ::volo::service::Service<::volo_thrift::context::ClientContext, #req_send_name, Response = ::std::option::Option<#res_name>, Error = ::volo_thrift::Error> + Send + Sync + 'static> #generic_client_name<S> {
-                pub fn with_callopt<Opt: ::volo::client::Apply<::volo_thrift::context::ClientContext>>(self, opt: Opt) -> #oneshot_client_name<::volo::client::WithOptService<S, Opt>> {
-                    #oneshot_client_name(self.0.with_opt(opt))
-                }
+            impl<MS, L> #generic_client_name<MS, L> {
+                // pub fn with_callopt<Opt: ::volo::client::Apply<::volo_thrift::context::ClientContext>>(self, opt: Opt) -> #oneshot_client_name<::volo::client::WithOptService<S, Opt>> {
+                //     #oneshot_client_name(self.0.with_opt(opt))
+                // }
 
                 #(#client_methods)*
             }
 
-            impl<S: ::volo::client::OneShotService<::volo_thrift::context::ClientContext, #req_send_name, Response = ::std::option::Option<#res_name>, Error = ::volo_thrift::Error> + Send + Sync + 'static> #oneshot_client_name<S> {
-                #(#oneshot_client_methods)*
-            }
+            // impl<S: ::volo::client::OneShotService<::volo_thrift::context::ClientContext, #req_send_name, Response = ::std::option::Option<#res_name>, Error = ::volo_thrift::Error> + Send + Sync + 'static> #oneshot_client_name<S> {
+            //     #(#oneshot_client_methods)*
+            // }
 
             pub struct #client_builder_name {
             }
@@ -460,8 +433,6 @@ impl pilota_build::CodegenBackend for VoloThriftBackend {
                     ::volo::layer::Identity,
                     ::volo::layer::Identity,
                     #mk_client_name,
-                    #req_send_name,
-                    #res_name,
                     ::volo::net::dial::DefaultMakeTransport,
                     ::volo_thrift::codec::default::DefaultMakeCodec<::volo_thrift::codec::default::ttheader::MakeTTHeaderCodec<::volo_thrift::codec::default::framed::MakeFramedCodec<::volo_thrift::codec::default::thrift::MakeThriftCodec>>>,
                     ::volo::loadbalance::LbConfig<::volo::loadbalance::random::WeightedRandomBalance<()>, ::volo::discovery::DummyDiscover>,

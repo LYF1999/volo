@@ -1,31 +1,45 @@
 #![feature(type_alias_impl_trait)]
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use lazy_static::lazy_static;
-use volo_thrift::client::CallOpt;
+use volo_thrift::client::layer::timeout::TimeoutLayer;
 
 lazy_static! {
-    static ref CLIENT: volo_gen::thrift_gen::hello::HelloServiceClient = {
-        let addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
-        volo_gen::thrift_gen::hello::HelloServiceClientBuilder::new("hello")
-            .address(addr)
-            .build()
-    };
+    // static ref CLIENT: volo_gen::thrift_gen::hello::HelloServiceClient = {
+    //     let addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
+    //     volo_gen::thrift_gen::hello::HelloServiceClientBuilder::new("hello")
+    //         .address(addr)
+    //         .build()
+    // };
 }
 
 pub struct LogService<S>(S);
 
 #[volo::main]
 async fn main() {
+    let client = {
+        let addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
+        volo_gen::thrift_gen::hello::HelloServiceClientBuilder::new("hello")
+            .address(addr)
+            .layer_inner(TimeoutLayer)
+            .build()
+    };
     let req = volo_gen::thrift_gen::hello::HelloRequest {
         name: "volo".into(),
     };
-    let resp = CLIENT
-        .clone()
-        .with_callopt(CallOpt::default())
+    let resp = client
+        // .clone()
+        // .with_callopt(CallOpt::default())
+        .hello(Arc::new(req.clone()))
+        .await;
+
+    let resp = client
+        // .clone()
+        // .with_callopt(CallOpt::default())
         .hello(req)
         .await;
+
     match resp {
         Ok(info) => println!("{info:?}"),
         Err(e) => eprintln!("{e:?}"),

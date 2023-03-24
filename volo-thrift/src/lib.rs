@@ -17,5 +17,5 @@ pub mod context;
 pub mod server;
 pub use anyhow::Error as AnyhowError;
 pub use error::*;
-pub use message::{EntryMessage, Message};
+pub use message::Message;
 pub use message_wrapper::*;

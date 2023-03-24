@@ -9,6 +9,7 @@ use motore::{
     service::Service,
     BoxError,
 };
+use pilota::thrift::Message;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::Notify,
@@ -26,7 +27,7 @@ use crate::{
         DefaultMakeCodec, MakeCodec,
     },
     context::ServerContext,
-    EntryMessage, Result,
+    Result,
 };
 
 /// This is unstable now and may be changed in the future.
@@ -149,8 +150,8 @@ impl<S, L, Req, MkC> Server<S, L, Req, MkC> {
         for<'cx> <L::Service as Service<ServerContext, Req>>::Future<'cx>: Send,
         S: Service<ServerContext, Req> + Send + 'static,
         S::Error: Into<crate::Error> + Send,
-        Req: EntryMessage + Send + 'static,
-        S::Response: EntryMessage + Send + 'static + Sync,
+        Req: Message + Send + 'static,
+        S::Response: Message + Send + 'static + Sync,
     {
         // init server
         let service = Arc::new(self.layer.layer(self.service));
@@ -332,8 +333,8 @@ async fn handle_conn<R, W, Req, Svc, Resp, MkC>(
     Svc: Service<ServerContext, Req, Response = Resp> + Clone + Send + 'static,
     Svc::Error: Send,
     Svc::Error: Into<crate::Error>,
-    Req: EntryMessage + Send + 'static,
-    Resp: EntryMessage + Send + 'static,
+    Req: Message + Send + 'static,
+    Resp: Message + Send + 'static,
     MkC: MakeCodec<R, W>,
 {
     // get read lock and create Notified

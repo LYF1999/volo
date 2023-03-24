@@ -6,6 +6,7 @@ use std::{
 
 use metainfo::MetaInfo;
 use motore::service::Service;
+use pilota::thrift::Message;
 use tokio::sync::futures::Notified;
 use tracing::*;
 use volo::{context::Endpoint, net::Address, volo_unreachable};
@@ -14,7 +15,7 @@ use crate::{
     codec::{Decoder, Encoder},
     context::ServerContext,
     protocol::TMessageType,
-    DummyMessage, EntryMessage, Error, ThriftMessage,
+    DummyMessage, Error, ThriftMessage,
 };
 
 pub async fn serve<Svc, Req, Resp, E, D>(
@@ -28,8 +29,8 @@ pub async fn serve<Svc, Req, Resp, E, D>(
 ) where
     Svc: Service<ServerContext, Req, Response = Resp>,
     Svc::Error: Into<Error>,
-    Req: EntryMessage,
-    Resp: EntryMessage,
+    Req: Message,
+    Resp: Message,
     E: Encoder,
     D: Decoder,
 {

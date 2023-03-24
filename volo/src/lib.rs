@@ -6,7 +6,7 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 pub use async_trait::async_trait;
-pub use motore::{layer, layer::Layer, service, Service};
+pub use motore::{layer, layer::Layer, Service};
 pub use tokio::main;
 
 pub mod context;
@@ -19,6 +19,7 @@ pub use hack::Unwrap;
 pub mod client;
 mod hack;
 mod macros;
+pub mod service;
 
 pub use metainfo::METAINFO;
 

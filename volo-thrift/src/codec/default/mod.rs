@@ -28,14 +28,14 @@
 //! [Framed]: https://github.com/apache/thrift/blob/master/doc/specs/thrift-rpc.md#framed-vs-unframed-transport
 use bytes::BytesMut;
 use linkedbytes::LinkedBytes;
-use pilota::thrift::{DecodeError, EncodeError, TransportError};
+use pilota::thrift::{DecodeError, EncodeError, Message, TransportError};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt};
 use tracing::{trace, warn};
 use volo::util::buf_reader::BufReader;
 
 use self::{framed::MakeFramedCodec, thrift::MakeThriftCodec, ttheader::MakeTTHeaderCodec};
 use super::{Decoder, Encoder, MakeCodec};
-use crate::{context::ThriftContext, EntryMessage, ThriftMessage};
+use crate::{context::ThriftContext, ThriftMessage};
 
 pub mod framed;
 pub mod thrift;
@@ -49,7 +49,7 @@ pub mod ttheader;
 pub trait ZeroCopyEncoder: Send + Sync + 'static {
     /// [`encode`] can rely on the `cx` to get some information such as the protocol detected by
     /// the decoder.
-    fn encode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn encode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         linked_bytes: &mut LinkedBytes,
@@ -63,7 +63,7 @@ pub trait ZeroCopyEncoder: Send + Sync + 'static {
     /// implementation can cache the size in the struct.
     ///
     /// The returned value is (real_size, recommended_malloc_size).
-    fn size<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn size<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: &ThriftMessage<Msg>,
@@ -77,7 +77,7 @@ pub trait ZeroCopyEncoder: Send + Sync + 'static {
 pub trait ZeroCopyDecoder: Send + Sync + 'static {
     /// If the outer decoder is framed, it can reads all the payload into a [`BytesMut`] and
     /// call this function for better performance.
-    fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         bytes: &mut BytesMut,
@@ -86,7 +86,7 @@ pub trait ZeroCopyDecoder: Send + Sync + 'static {
     /// The [`DefaultDecoder`] will always call `decode_async`, so the most outer decoder
     /// must implement this function.
     async fn decode_async<
-        Msg: Send + EntryMessage,
+        Msg: Send + Message,
         Cx: ThriftContext,
         R: AsyncRead + Unpin + Send + Sync,
     >(
@@ -116,7 +116,7 @@ pub struct DefaultEncoder<E, W> {
 impl<E: ZeroCopyEncoder, W: AsyncWrite + Unpin + Send + Sync + 'static> Encoder
     for DefaultEncoder<E, W>
 {
-    async fn encode<Req: Send + EntryMessage, Cx: ThriftContext>(
+    async fn encode<Req: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: ThriftMessage<Req>,
@@ -188,7 +188,7 @@ pub struct DefaultDecoder<D, R> {
 impl<D: ZeroCopyDecoder, R: AsyncRead + Unpin + Send + Sync + 'static> Decoder
     for DefaultDecoder<D, R>
 {
-    async fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    async fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
     ) -> Result<Option<ThriftMessage<Msg>>, crate::Error> {

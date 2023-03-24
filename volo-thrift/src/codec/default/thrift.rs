@@ -3,14 +3,14 @@ use linkedbytes::LinkedBytes;
 use pilota::thrift::{
     binary::TBinaryProtocol,
     compact::{TCompactInputProtocol, TCompactOutputProtocol},
-    DecodeError, DecodeErrorKind, EncodeError, ProtocolError, ProtocolErrorKind,
+    DecodeError, DecodeErrorKind, EncodeError, Message, ProtocolError, ProtocolErrorKind,
     TAsyncBinaryProtocol, TAsyncCompactProtocol, TLengthProtocol,
 };
 use tokio::io::AsyncRead;
 use volo::util::buf_reader::BufReader;
 
 use super::{MakeZeroCopyCodec, ZeroCopyDecoder, ZeroCopyEncoder};
-use crate::{context::ThriftContext, EntryMessage, ThriftMessage};
+use crate::{context::ThriftContext, ThriftMessage};
 
 /// [`MakeThriftCodec`] implements [`MakeZeroCopyCodec`] to create [`ThriftCodec`].
 #[derive(Debug, Clone, Copy)]
@@ -97,7 +97,7 @@ impl Default for ThriftCodec {
 
 #[async_trait::async_trait]
 impl ZeroCopyDecoder for ThriftCodec {
-    fn decode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn decode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         bytes: &mut BytesMut,
@@ -134,11 +134,7 @@ impl ZeroCopyDecoder for ThriftCodec {
         }
     }
 
-    async fn decode_async<
-        Msg: Send + EntryMessage,
-        Cx: ThriftContext,
-        R: AsyncRead + Unpin + Send,
-    >(
+    async fn decode_async<Msg: Send + Message, Cx: ThriftContext, R: AsyncRead + Unpin + Send>(
         &mut self,
         cx: &mut Cx,
         reader: &mut BufReader<R>,
@@ -200,7 +196,7 @@ pub fn detect(buf: &[u8]) -> Result<Protocol, ProtocolError> {
 }
 
 impl ZeroCopyEncoder for ThriftCodec {
-    fn encode<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn encode<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         linked_bytes: &mut LinkedBytes,
@@ -226,7 +222,7 @@ impl ZeroCopyEncoder for ThriftCodec {
         }
     }
 
-    fn size<Msg: Send + EntryMessage, Cx: ThriftContext>(
+    fn size<Msg: Send + Message, Cx: ThriftContext>(
         &mut self,
         cx: &mut Cx,
         msg: &ThriftMessage<Msg>,

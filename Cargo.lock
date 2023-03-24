@@ -985,8 +985,6 @@ dependencies = [
 [[package]]
 name = "motore"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41fa4ce435ed5803d6967d2893ccf4891972c83a0f6b80ed495e6ffa3e58e7d7"
 dependencies = [
  "futures",
  "motore-macros",
@@ -998,8 +996,6 @@ dependencies = [
 [[package]]
 name = "motore-macros"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "048405af4b0ef8360c5bf870806f453346b3e463c0fafc33670627c29aed8500"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1231,8 +1227,6 @@ dependencies = [
 [[package]]
 name = "pilota"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c034a1361050258080bf4956c3586d0f356cfed4f50409fcf04638757cd2acba"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -1253,8 +1247,6 @@ dependencies = [
 [[package]]
 name = "pilota-build"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3312791b003b24ca1ccf26d211c99b7819349b88bc8d68dc6b985b724f27bf9c"
 dependencies = [
  "faststr",
  "fxhash",
@@ -1265,7 +1257,7 @@ dependencies = [
  "paste",
  "petgraph",
  "phf",
- "pilota-thrift-parser",
+ "pilota-thrift-parser 0.4.1",
  "proc-macro2",
  "protobuf-parse2",
  "protobuf2",
@@ -1275,6 +1267,13 @@ dependencies = [
  "syn",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "pilota-thrift-parser"
+version = "0.4.1"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -2236,7 +2235,7 @@ dependencies = [
  "lazy_static",
  "log",
  "normpath",
- "pilota-thrift-parser",
+ "pilota-thrift-parser 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_env_logger",
  "regex",
  "run_script",

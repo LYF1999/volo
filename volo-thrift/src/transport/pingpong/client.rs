@@ -1,8 +1,8 @@
-use std::{io, marker::PhantomData};
+use std::io;
 
 use futures::Future;
 use motore::service::{Service, UnaryService};
-use pilota::thrift::{TransportError, TransportErrorKind};
+use pilota::thrift::{Message, TransportError, TransportErrorKind};
 use volo::{
     net::{dial::MakeTransport, Address},
     Unwrap,
@@ -16,7 +16,7 @@ use crate::{
         pingpong::thrift_transport::ThriftTransport,
         pool::{Config, PooledMakeTransport},
     },
-    EntryMessage, ThriftMessage,
+    ThriftMessage,
 };
 
 #[derive(Clone)]
@@ -61,17 +61,16 @@ where
     }
 }
 
-pub struct Client<Resp, MkT, MkC>
+pub struct Client<MkT, MkC>
 where
     MkT: MakeTransport,
     MkC: MakeCodec<MkT::ReadHalf, MkT::WriteHalf> + Sync,
 {
     #[allow(clippy::type_complexity)]
     make_transport: PooledMakeTransport<MakeClientTransport<MkT, MkC>, Address>,
-    _marker: PhantomData<Resp>,
 }
 
-impl<Resp, MkT, MkC> Clone for Client<Resp, MkT, MkC>
+impl<MkT, MkC> Clone for Client<MkT, MkC>
 where
     MkT: MakeTransport,
     MkC: MakeCodec<MkT::ReadHalf, MkT::WriteHalf> + Sync,
@@ -79,12 +78,11 @@ where
     fn clone(&self) -> Self {
         Self {
             make_transport: self.make_transport.clone(),
-            _marker: self._marker,
         }
     }
 }
 
-impl<Resp, MkT, MkC> Client<Resp, MkT, MkC>
+impl<MkT, MkC> Client<MkT, MkC>
 where
     MkT: MakeTransport,
     MkC: MakeCodec<MkT::ReadHalf, MkT::WriteHalf> + Sync,
@@ -92,64 +90,51 @@ where
     pub fn new(make_transport: MkT, pool_cfg: Option<Config>, make_codec: MkC) -> Self {
         let make_transport = MakeClientTransport::new(make_transport, make_codec);
         let make_transport = PooledMakeTransport::new(make_transport, pool_cfg);
-        Client {
-            make_transport,
-            _marker: PhantomData,
-        }
+        Client { make_transport }
     }
 }
 
-impl<Req, Resp, MkT, MkC> Service<ClientContext, ThriftMessage<Req>> for Client<Resp, MkT, MkC>
+impl<MkT, MkC> Client<MkT, MkC>
 where
-    Req: Send + 'static + EntryMessage,
-    Resp: EntryMessage + Sync,
     MkT: MakeTransport,
     MkC: MakeCodec<MkT::ReadHalf, MkT::WriteHalf> + Sync,
 {
-    type Response = Option<ThriftMessage<Resp>>;
-
-    type Error = crate::Error;
-
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + Send + 'cx where Self:'cx;
-
-    fn call<'cx, 's>(
+    pub async fn call<'cx, 's, Req: Message, Resp: Message>(
         &'s self,
         cx: &'cx mut ClientContext,
         req: ThriftMessage<Req>,
-    ) -> Self::Future<'cx>
+    ) -> Result<Option<ThriftMessage<Resp>>, crate::Error>
     where
         's: 'cx,
     {
-        async move {
-            let rpc_info = &cx.rpc_info;
-            let target = rpc_info.callee().volo_unwrap().address().ok_or_else(|| {
-                TransportError::from(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("address is required, rpc_info: {:?}", rpc_info),
-                ))
-            })?;
-            let oneway = cx.message_type == TMessageType::OneWay;
-            cx.stats.record_make_transport_start_at();
-            let mut transport = self.make_transport.call(target).await?;
-            cx.stats.record_make_transport_end_at();
-            let resp = transport.send(cx, req, oneway).await;
-            if let Ok(None) = resp {
-                if !oneway {
-                    return Err(crate::Error::Transport(
-                        pilota::thrift::TransportError::new(
-                            TransportErrorKind::EndOfFile,
-                            format!(
-                                "an unexpected end of file from server, rpc_info: {:?}",
-                                cx.rpc_info
-                            ),
+        let rpc_info = &cx.rpc_info;
+        let target = rpc_info.callee().volo_unwrap().address().ok_or_else(|| {
+            TransportError::from(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("address is required, rpc_info: {:?}", rpc_info),
+            ))
+        })?;
+        let oneway = cx.message_type == TMessageType::OneWay;
+        cx.stats.record_make_transport_start_at();
+        let mut transport = self.make_transport.call(target).await?;
+        cx.stats.record_make_transport_end_at();
+        let resp = transport.send(cx, req, oneway).await;
+        if let Ok(None) = resp {
+            if !oneway {
+                return Err(crate::Error::Transport(
+                    pilota::thrift::TransportError::new(
+                        TransportErrorKind::EndOfFile,
+                        format!(
+                            "an unexpected end of file from server, rpc_info: {:?}",
+                            cx.rpc_info
                         ),
-                    ));
-                }
+                    ),
+                ));
             }
-            if cx.transport.should_reuse && resp.is_ok() {
-                transport.reuse();
-            }
-            resp
         }
+        if cx.transport.should_reuse && resp.is_ok() {
+            transport.reuse();
+        }
+        resp
     }
 }
